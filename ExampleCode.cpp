@@ -28,17 +28,27 @@ int main() {
 	*/
 	// converting from color to grayscale:
 	// cvtColor(img,gray,COLOR_BGR2GRAY);
-	Ptr<Feature2D> f2d = xfeatures2d::SIFT::create();
+	Ptr<Feature2D> sift_f2d = xfeatures2d::SIFT::create();
+	Ptr<Feature2D> surf_f2d = xfeatures2d::SURF::create();
 	gray = img;
-	std::vector<KeyPoint> keypoints;
-	f2d->detect(gray, keypoints);
-	Mat descriptors;
-	f2d->compute(gray, keypoints, descriptors);
-	Mat img_keypoints;
-	drawKeypoints(gray, keypoints, img_keypoints, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	std::vector<KeyPoint> sift_keypoints;
+	std::vector<KeyPoint> surf_keypoints;
+	sift_f2d->detect(gray, sift_keypoints);
+	surf_f2d->detect(gray, surf_keypoints);
+	Mat sift_descriptors;
+	Mat surf_descriptors;
+	sift_f2d->compute(gray, sift_keypoints, sift_descriptors);
+	surf_f2d->compute(gray, surf_keypoints, surf_descriptors);
+	Mat img_sift_keypoints;
+	Mat img_surf_keypoints;
+	drawKeypoints(gray, sift_keypoints, img_sift_keypoints, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	drawKeypoints(gray, surf_keypoints, img_surf_keypoints, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 
-	namedWindow("KeyPoints", WINDOW_AUTOSIZE);
-	imshow("KeyPoints", img_keypoints);
+	namedWindow("SIFT KeyPoints", WINDOW_AUTOSIZE);
+	imshow("SIFT KeyPoints", img_sift_keypoints);
+	cv::waitKey(0);
+	namedWindow("SURF KeyPoints", WINDOW_AUTOSIZE);
+	imshow("SURF KeyPoints", img_surf_keypoints);
 	cv::waitKey(0);
 	return 0;
 }
