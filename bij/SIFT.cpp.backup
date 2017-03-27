@@ -1,0 +1,118 @@
+#include <stdio.h>
+#include <iostream>
+#include "opencv2/core.hpp"
+#include "opencv2/features2d.hpp"
+#include "opencv2/xfeatures2d.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/xfeatures2d.hpp"
+#include "opencv2/xfeatures2d/nonfree.hpp"
+#include "opencv2/calib3d/calib3d.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+
+
+using namespace cv;
+using namespace std;
+using namespace cv::xfeatures2d;
+
+int main() {
+	std::cout << "OpenCV Version: " << CV_MAJOR_VERSION << "." << CV_MINOR_VERSION << std::endl;
+	//for gray scale images:
+	Mat img2 = imread("im2.png", IMREAD_GRAYSCALE);
+	Mat img6 = imread("im6.png", IMREAD_GRAYSCALE);
+	if(! (img2.data && img6.data) ){
+		cout <<  "Could not open or find the images" << std::endl ;
+		return -1;
+	}
+	Mat gray2;
+	Mat gray6;
+	gray2 = img2;
+	gray6 = img6;
+
+	int num_points = 500;
+
+	Ptr<Feature2D> sift_f2d = xfeatures2d::SIFT::create(num_points);
+	Ptr<Feature2D> surf_f2d = xfeatures2d::SURF::create(num_points);
+	vector<KeyPoint> sift_keypoints;
+	vector<KeyPoint> surf_keypoints;
+	sift_f2d->detect(gray2, sift_keypoints);
+	surf_f2d->detect(gray2, surf_keypoints);
+	Mat sift_descriptors;
+	Mat surf_descriptors;
+	sift_f2d->compute(gray2, sift_keypoints, sift_descriptors);
+	surf_f2d->compute(gray2, surf_keypoints, surf_descriptors);
+	Mat img_sift_keypoints;
+	Mat img_surf_keypoints;
+	drawKeypoints(gray2, sift_keypoints, img_sift_keypoints, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	drawKeypoints(gray2, surf_keypoints, img_surf_keypoints, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+	namedWindow("SIFT KeyPoints", WINDOW_AUTOSIZE);
+	imshow("SIFT KeyPoints", img_sift_keypoints);
+	cv::waitKey(0);
+	namedWindow("SURF KeyPoints", WINDOW_AUTOSIZE);
+	imshow("SURF KeyPoints", img_surf_keypoints);
+
+	FlannBasedMatcher matcher;
+
+	namedWindow("Good Matches");
+
+	vector<Point2f> obj_corners(4);
+
+	//Get the corners from the object
+	obj_corners[0] = cvPoint(0,0);
+	obj_corners[1] = cvPoint( img2.cols, 0 );
+	obj_corners[2] = cvPoint( img2.cols, img2.rows );
+	obj_corners[3] = cvPoint( 0, img2.rows );
+
+	Mat des_image, img_matches;
+	vector<KeyPoint> kp_image;
+	vector<KeyPoint> kp_object;
+	vector<vector<DMatch > > matches;
+	vector<DMatch> good_matches;
+	vector<Point2f> obj;
+	vector<Point2f> scene;
+	vector<Point2f> scene_corners(4);
+	Mat H;
+	Mat image;
+
+	sift_f2d->detect( image, kp_image );
+	sift_f2d->compute( image, kp_image, des_image );
+
+	Mat destination;
+	matcher.knnMatch(destination, des_image, matches,2);
+
+	for(int i = 0; i < min(des_image.rows-1,(int) matches.size()); i++) //THIS LOOP IS SENSITIVE TO SEGFAULTS
+	{
+		if((matches[i][0].distance < 0.6*(matches[i][1].distance)) && ((int) matches[i].size()<=2 && (int) matches[i].size()>0))
+		{
+			good_matches.push_back(matches[i][0]);
+		}
+	}
+
+	//Draw only "good" matches
+	drawMatches( img2, kp_object, img6, kp_image, good_matches, img_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::DEFAULT  );
+
+	if (good_matches.size() >= 4)
+	{
+		for( int i = 0; i < good_matches.size(); i++ )
+		{
+			//Get the keypoints from the good matches
+			obj.push_back( kp_object[ good_matches[i].queryIdx ].pt );
+			scene.push_back( kp_image[ good_matches[i].trainIdx ].pt );
+		}
+
+		H = findHomography( obj, scene, CV_RANSAC );
+
+		perspectiveTransform( obj_corners, scene_corners, H);
+  
+	}
+
+	//Show detected matches
+	imshow( "Good Matches", img_matches );
+	cv::Mat img;
+	cv::resize(img_matches,img,cv::Size(3000,1600));
+	//Mat image2=cvCloneImage(&(IplImage)img);
+
+	cv::waitKey(0);
+	return 0;
+}
+
