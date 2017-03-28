@@ -43,22 +43,13 @@ int main() {
 	Ptr<Feature2D> sift_f2d = xfeatures2d::SIFT::create(num_points);
 
 	// Detect Key Points
-	vector<KeyPoint> img2_sift_keypoints;
-	vector<KeyPoint> img6_sift_keypoints;
-	sift_f2d->detect(gray2, img2_sift_keypoints);
-	sift_f2d->detect(gray6, img6_sift_keypoints);
-
-	KeyPoint temp1 = img2_sift_keypoints[0];
 	vector<KeyPoint> img2_all_sift_kps;
 	vector<KeyPoint> img6_all_sift_kps;
 	for(int r=0; r<img2.rows; r++){
 		for(int c=0; c<img2.cols; c++){
-			img2_all_sift_kps.push_back(temp1);
-			img2_all_sift_kps.back().pt = Point2f(c, r);
-			img2_all_sift_kps.back().angle = -1;
-			img6_all_sift_kps.push_back(temp1);
-			img6_all_sift_kps.back().pt = Point2f(c, r);
-			img6_all_sift_kps.back().angle = -1;
+			KeyPoint temp_kp = KeyPoint(Point2f(c, r), 16, -1);
+			img2_all_sift_kps.push_back(temp_kp);
+			img6_all_sift_kps.push_back(temp_kp);
 		}
 	}
 
