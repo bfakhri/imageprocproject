@@ -13,22 +13,15 @@ using namespace cv;
 using namespace std;
 using namespace cv::xfeatures2d;
 
-int num_points = 50;
-int num_good_matches = 10000;
-
 bool dist(DMatch m1, DMatch m2){
 	return m1.distance < m2.distance;
 }
 
 int main() {
 	std::cout << "OpenCV Version: " << CV_MAJOR_VERSION << "." << CV_MINOR_VERSION << std::endl;
-	//for gray scale images:
-	//Mat img2 = imread("im2.png", IMREAD_GRAYSCALE);
+	// Load the images
+	Mat img2 = imread("im2.png", IMREAD_GRAYSCALE);
 	Mat img6 = imread("im6.png", IMREAD_GRAYSCALE);
-	Mat img2 = imread("im6.png", IMREAD_GRAYSCALE);
-	//Mat img2 = imread("disp2.png", IMREAD_GRAYSCALE);
-	//Mat img6 = imread("disp2.png", IMREAD_GRAYSCALE);
-	//Mat img6 = imread("disp6.png", IMREAD_GRAYSCALE);
 	if(! (img2.data && img6.data) ){
 		cout <<  "Could not open or find the images" << std::endl ;
 		return -1;
@@ -40,22 +33,13 @@ int main() {
 
 
 	// Create Feature Detector Objects
-	Ptr<Feature2D> sift_f2d = xfeatures2d::SIFT::create(num_points);
+	Ptr<Feature2D> sift_f2d = xfeatures2d::SIFT::create();
 
 	// Detect Key Points
 	vector<KeyPoint> img2_all_sift_kps;
 	vector<KeyPoint> img6_all_sift_kps;
-	for(int r=0; r<img2.rows; r++){
-		for(int c=0; c<img2.cols; c++){
-			KeyPoint temp_kp = KeyPoint(Point2f(c, r), 16, -1);
-			img2_all_sift_kps.push_back(temp_kp);
-			img6_all_sift_kps.push_back(temp_kp);
-		}
-	}
-
-	
-			
-			
+	sift_f2d->detect(gray2, img2_sift_keypoints);
+	sift_f2d->detect(gray6, img6_sift_keypoints);
 
 	// Create Descriptors for the keypoints
 	Mat img2_sift_descriptors;
