@@ -13,6 +13,8 @@ using namespace cv;
 using namespace std;
 using namespace cv::xfeatures2d;
 
+const int delta_d = 1;	// Allowable diff in disparity against GT for a "correct" match
+
 bool dist(DMatch m1, DMatch m2){
 	return m1.distance < m2.distance;
 }
@@ -74,9 +76,14 @@ int main() {
 	for(int m=0; m<surf_matches.size(); m++){
 		int img2_idx = surf_matches[m].queryIdx;
 		int img6_idx = surf_matches[m].trainIdx;
+		int img2_x = img2_surf_kps[img2_idx].pt.x;
 		int img2_y = img2_surf_kps[img2_idx].pt.y;
+		int img6_x = img6_surf_kps[img6_idx].pt.x;
 		int img6_y = img6_surf_kps[img6_idx].pt.y;
-		if(abs(img2_y - img6_y) < 8)
+		double disp_xy = sqrt(pow(img2_y-img6_y, 2)+pow(img2_x-img6_x, 2));
+		double gt_xy_disp = (disp2.at<uchar>(img2_x, img2_y))/float(4);
+		
+		if(abs(disp_xy - gt_xy_disp) < delta_d)
 			best_matches.push_back(surf_matches[m]);
 	}
 
@@ -130,6 +137,8 @@ int main() {
 	cout << "SURF Avg XY Disparity = " << total_disp_xy/best_matches.size() << endl;
 	cout << "GT Avg XY Disparity = " << gt_total_disp_xy/best_matches.size() << endl;
 	cout << "RMSE XY = " << rmse_err << endl;
+	cout << "Percent Incorrectly Matched Points = " << 100*(surf_matches.size() - best_matches.size())/surf_matches.size() << "%" << endl;
+
 	
 	
 	
