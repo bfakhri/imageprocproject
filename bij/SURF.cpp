@@ -80,6 +80,11 @@ int main() {
 
 	// Sort the matches based on distance 
 	sort(surf_matches.begin(), surf_matches.end(), dist);
+	// Find best matches based on distance
+	vector<DMatch> best_matches;
+	for(int m=0; m<surf_matches.size()/10; m++){
+		best_matches.push_back(surf_matches[m]);
+	}
 
 	namedWindow("SURF Matches", WINDOW_AUTOSIZE);
 	imshow("SURF Matches", draw_surf_matches);
@@ -114,7 +119,7 @@ int main() {
 		gt_sum += (disp2.at<uchar>(img2_x, img2_y))/float(4);
 	}
 
-	cout << "--- Image 2 Respective Measurements --- " << endl;
+	cout << endl << "--- Image 2 Respective Measurements --- " << endl;
 	cout << "GT Sum of Distances (Disparity) = " << gt_sum << endl;
 	cout << "Sum of Distances (Disparity) = " << sum << endl;
 	cout << "GT Average Distance (Disparity) = " << gt_sum/surf_matches.size() << endl;
@@ -137,12 +142,36 @@ int main() {
 		gt_sum += (disp6.at<uchar>(img2_x, img2_y))/float(4);
 	}
 
-	cout << "--- Image 2 Respective Measurements --- " << endl;
+	cout << endl << "--- Image 2 Respective Measurements --- " << endl;
 	cout << "GT Sum of Distances (Disparity) = " << gt_sum << endl;
 	cout << "Sum of Distances (Disparity) = " << sum << endl;
 	cout << "GT Average Distance (Disparity) = " << gt_sum/surf_matches.size() << endl;
 	cout << "Average Distance (Disparity) = " << sum/surf_matches.size() << endl;
 
+	// Calculate the Disparity (img2 to img6) using only best matches
+	sum = 0; 
+	gt_sum = 0; 
+	for(int m=0; m<best_matches.size(); m++){
+		//cout << "------" << endl << surf_matches[m].imgIdx << endl << surf_matches[m].queryIdx << endl << surf_matches[m].trainIdx << endl << "------" << endl;
+		int img2_idx = best_matches[m].queryIdx;
+		int img6_idx = best_matches[m].trainIdx;
+		int img2_x = img2_all_surf_kps[img2_idx].pt.x;
+		int img2_y = img2_all_surf_kps[img2_idx].pt.y;
+		int img6_x = img6_all_surf_kps[img6_idx].pt.x;
+		int img6_y = img6_all_surf_kps[img6_idx].pt.y;
+		double euc_dist = sqrt(pow(img2_y-img6_y, 2)+pow(img2_x-img6_x, 2));
+		//cout << euc_dist << endl;
+		sum += euc_dist;
+
+		gt_sum += (disp2.at<uchar>(img2_x, img2_y))/float(4);
+	}
+
+	cout << endl << "--- Image 2 Respective Measurements --- " << endl;
+	cout << "--- Best Image 2 Respective Measurements --- " << endl;
+	cout << "GT Sum of Distances (Disparity) = " << gt_sum << endl;
+	cout << "Sum of Distances (Disparity) = " << sum << endl;
+	cout << "GT Average Distance (Disparity) = " << gt_sum/best_matches.size() << endl;
+	cout << "Average Distance (Disparity) = " << sum/best_matches.size() << endl;
 	return 0;
 }
 
