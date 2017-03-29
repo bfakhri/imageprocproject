@@ -23,46 +23,40 @@ int main() {
 	Mat img2 = imread("im2.png", IMREAD_GRAYSCALE);
 	Mat img6 = imread("im6.png", IMREAD_GRAYSCALE);
 	Mat disp2 = imread("disp2.png", IMREAD_GRAYSCALE);
-	Mat disp6 = imread("disp6.png", IMREAD_GRAYSCALE);
 	if(! (img2.data && img6.data) ){
 		cout <<  "Could not open or find the images" << std::endl ;
 		return -1;
 	}
-	Mat gray2;
-	Mat gray6;
-	gray2 = img2;
-	gray6 = img6;
-
 
 	// Create Feature Detector Objects
 	Ptr<Feature2D> surf_f2d = xfeatures2d::SURF::create();
 
 	// Detect Key Points
-	vector<KeyPoint> img2_all_surf_kps;
-	vector<KeyPoint> img6_all_surf_kps;
-	surf_f2d->detect(gray2, img2_all_surf_kps);
-	surf_f2d->detect(gray6, img6_all_surf_kps);
+	vector<KeyPoint> img2_surf_kps;
+	vector<KeyPoint> img6_surf_kps;
+	surf_f2d->detect(img2, img2_surf_kps);
+	surf_f2d->detect(img6, img6_surf_kps);
 
 	// Create Descriptors for the keypoints
 	Mat img2_surf_descriptors;
 	Mat img6_surf_descriptors;
-	surf_f2d->compute(gray2, img2_all_surf_kps, img2_surf_descriptors);
-	surf_f2d->compute(gray2, img6_all_surf_kps, img6_surf_descriptors);
+	surf_f2d->compute(img2, img2_surf_kps, img2_surf_descriptors);
+	surf_f2d->compute(img6, img6_surf_kps, img6_surf_descriptors);
 
 	// Draw the keypoints to new images and display them
-	Mat draw_img2_all_surf_kps;
-	Mat draw_img6_all_surf_kps;
-	drawKeypoints(gray2, img2_all_surf_kps, draw_img2_all_surf_kps, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-	drawKeypoints(gray6, img6_all_surf_kps, draw_img6_all_surf_kps, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	Mat draw_img2_surf_kps;
+	Mat draw_img6_surf_kps;
+	drawKeypoints(img2, img2_surf_kps, draw_img2_surf_kps, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	drawKeypoints(img6, img6_surf_kps, draw_img6_surf_kps, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 	
 	// Display the keypoints of all images
 	namedWindow("IM2 SURF KeyPoints", WINDOW_AUTOSIZE);
-	imshow("IM2 SURF KeyPoints", draw_img2_all_surf_kps);
+	imshow("IM2 SURF KeyPoints", draw_img2_surf_kps);
 	namedWindow("IM6 SURF KeyPoints", WINDOW_AUTOSIZE);
-	imshow("IM6 SURF KeyPoints", draw_img6_all_surf_kps);
+	imshow("IM6 SURF KeyPoints", draw_img6_surf_kps);
 	cv::waitKey(0);
-	destroyWindow("IM2 SURF KeyPoints");
-	destroyWindow("IM6 SURF KeyPoints");
+	//destroyWindow("IM2 SURF KeyPoints");
+	//destroyWindow("IM6 SURF KeyPoints");
 
 	// Begin Matching Keypoints
 	FlannBasedMatcher flann_matcher;
@@ -72,106 +66,73 @@ int main() {
 	cout << "FLANN!" << endl;
 	flann_matcher.match(img2_surf_descriptors, img6_surf_descriptors, surf_matches);
 
-	// Draw and display the matches
-	Mat draw_surf_matches;
-	drawMatches(img2, img2_all_surf_kps, img6, img6_all_surf_kps, surf_matches, draw_surf_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-	//drawMatches(img2, img2_all_surf_kps, img6, img6_all_surf_kps, surf_good_matches, draw_surf_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::DEFAULT);	
-
-
 	// Sort the matches based on distance 
 	sort(surf_matches.begin(), surf_matches.end(), dist);
+
 	// Find best matches based on distance
 	vector<DMatch> best_matches;
-	for(int m=0; m<surf_matches.size()/10; m++){
-		best_matches.push_back(surf_matches[m]);
+	for(int m=0; m<surf_matches.size(); m++){
+		int img2_idx = surf_matches[m].queryIdx;
+		int img6_idx = surf_matches[m].trainIdx;
+		int img2_y = img2_surf_kps[img2_idx].pt.y;
+		int img6_y = img6_surf_kps[img6_idx].pt.y;
+		if(abs(img2_y - img6_y) < 8)
+			best_matches.push_back(surf_matches[m]);
 	}
+
+	// Draw and display the matches
+	Mat draw_surf_matches;
+	Mat draw_best_surf_matches;
+	drawMatches(img2, img2_surf_kps, img6, img6_surf_kps, surf_matches, draw_surf_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+	drawMatches(img2, img2_surf_kps, img6, img6_surf_kps, best_matches, draw_best_surf_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 
 	namedWindow("SURF Matches", WINDOW_AUTOSIZE);
 	imshow("SURF Matches", draw_surf_matches);
+	namedWindow("Best SURF Matches", WINDOW_AUTOSIZE);
+	imshow("Best SURF Matches", draw_best_surf_matches);
 	cv::waitKey(0);
 
 	double dist_sum = 0; 
 	for(int m=0; m<surf_matches.size(); m++){
 		dist_sum += surf_matches[m].distance; 
-		cout << surf_matches[m].distance << endl;
 	}
 	double avg = dist_sum/surf_matches.size();
 
 	cout << "SURF match distance sum = " << dist_sum << endl;
 	cout << "Avg matching distance = " << avg << endl;
 
-
-	// Calculate the Disparity (img2 to img6)
-	double sum = 0; 
-	double gt_sum = 0; 
-	for(int m=0; m<surf_matches.size(); m++){
-		//cout << "------" << endl << surf_matches[m].imgIdx << endl << surf_matches[m].queryIdx << endl << surf_matches[m].trainIdx << endl << "------" << endl;
-		int img2_idx = surf_matches[m].queryIdx;
-		int img6_idx = surf_matches[m].trainIdx;
-		int img2_x = img2_all_surf_kps[img2_idx].pt.x;
-		int img2_y = img2_all_surf_kps[img2_idx].pt.y;
-		int img6_x = img6_all_surf_kps[img6_idx].pt.x;
-		int img6_y = img6_all_surf_kps[img6_idx].pt.y;
-		double euc_dist = sqrt(pow(img2_y-img6_y, 2)+pow(img2_x-img6_x, 2));
-		//cout << euc_dist << endl;
-		sum += euc_dist;
-
-		gt_sum += (disp2.at<uchar>(img2_x, img2_y))/float(4);
-	}
-
-	cout << endl << "--- Image 2 Respective Measurements --- " << endl;
-	cout << "GT Sum of Distances (Disparity) = " << gt_sum << endl;
-	cout << "Sum of Distances (Disparity) = " << sum << endl;
-	cout << "GT Average Distance (Disparity) = " << gt_sum/surf_matches.size() << endl;
-	cout << "Average Distance (Disparity) = " << sum/surf_matches.size() << endl;
-
-	// Calculate the Disparity (img6 to img2)
-	sum = 0; 
-	gt_sum = 0; 
-	for(int m=0; m<surf_matches.size(); m++){
-		//cout << "------" << endl << surf_matches[m].imgIdx << endl << surf_matches[m].queryIdx << endl << surf_matches[m].trainIdx << endl << "------" << endl;
-		int img2_idx = surf_matches[m].trainIdx;
-		int img6_idx = surf_matches[m].queryIdx;
-		int img2_x = img2_all_surf_kps[img2_idx].pt.x;
-		int img2_y = img2_all_surf_kps[img2_idx].pt.y;
-		int img6_x = img6_all_surf_kps[img6_idx].pt.x;
-		int img6_y = img6_all_surf_kps[img6_idx].pt.y;
-		double euc_dist = sqrt(pow(img2_y-img6_y, 2)+pow(img2_x-img6_x, 2));
-		//cout << euc_dist << endl;
-		sum += euc_dist;
-		gt_sum += (disp6.at<uchar>(img2_x, img2_y))/float(4);
-	}
-
-	cout << endl << "--- Image 2 Respective Measurements --- " << endl;
-	cout << "GT Sum of Distances (Disparity) = " << gt_sum << endl;
-	cout << "Sum of Distances (Disparity) = " << sum << endl;
-	cout << "GT Average Distance (Disparity) = " << gt_sum/surf_matches.size() << endl;
-	cout << "Average Distance (Disparity) = " << sum/surf_matches.size() << endl;
-
 	// Calculate the Disparity (img2 to img6) using only best matches
-	sum = 0; 
-	gt_sum = 0; 
+	double total_disp_x = 0;
+	double total_disp_y = 0;
+	double total_disp_xy = 0;
+	double gt_total_disp_xy = 0;
+	double rmse_err = 0; 
 	for(int m=0; m<best_matches.size(); m++){
-		//cout << "------" << endl << surf_matches[m].imgIdx << endl << surf_matches[m].queryIdx << endl << surf_matches[m].trainIdx << endl << "------" << endl;
 		int img2_idx = best_matches[m].queryIdx;
 		int img6_idx = best_matches[m].trainIdx;
-		int img2_x = img2_all_surf_kps[img2_idx].pt.x;
-		int img2_y = img2_all_surf_kps[img2_idx].pt.y;
-		int img6_x = img6_all_surf_kps[img6_idx].pt.x;
-		int img6_y = img6_all_surf_kps[img6_idx].pt.y;
-		double euc_dist = sqrt(pow(img2_y-img6_y, 2)+pow(img2_x-img6_x, 2));
-		//cout << euc_dist << endl;
-		sum += euc_dist;
-
-		gt_sum += (disp2.at<uchar>(img2_x, img2_y))/float(4);
+		int img2_x = img2_surf_kps[img2_idx].pt.x;
+		int img2_y = img2_surf_kps[img2_idx].pt.y;
+		int img6_x = img6_surf_kps[img6_idx].pt.x;
+		int img6_y = img6_surf_kps[img6_idx].pt.y;
+		total_disp_x += abs(img2_x-img6_x);
+		total_disp_y += abs(img2_y-img6_y);
+		double disp_xy = sqrt(pow(img2_y-img6_y, 2)+pow(img2_x-img6_x, 2));
+		total_disp_xy += disp_xy; 
+		double gt_xy_disp = (disp2.at<uchar>(img2_x, img2_y))/float(4);
+		gt_total_disp_xy += gt_xy_disp;
+		rmse_err += pow(disp_xy-gt_xy_disp, 2)/best_matches.size();
 	}
+	rmse_err = sqrt(rmse_err);
 
-	cout << endl << "--- Image 2 Respective Measurements --- " << endl;
-	cout << "--- Best Image 2 Respective Measurements --- " << endl;
-	cout << "GT Sum of Distances (Disparity) = " << gt_sum << endl;
-	cout << "Sum of Distances (Disparity) = " << sum << endl;
-	cout << "GT Average Distance (Disparity) = " << gt_sum/best_matches.size() << endl;
-	cout << "Average Distance (Disparity) = " << sum/best_matches.size() << endl;
+	cout << endl << "--- Image 2-6 Respective Measurements --- " << endl;
+	cout << "SURF Avg X Disparity = " << total_disp_x/best_matches.size() << endl;
+	cout << "SURF Avg Y Disparity = " << total_disp_y/best_matches.size() << endl;
+	cout << "SURF Avg XY Disparity = " << total_disp_xy/best_matches.size() << endl;
+	cout << "GT Avg XY Disparity = " << gt_total_disp_xy/best_matches.size() << endl;
+	cout << "RMSE XY = " << rmse_err << endl;
+	
+	
+	
 	return 0;
 }
 
