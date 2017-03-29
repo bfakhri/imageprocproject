@@ -24,7 +24,7 @@ int main() {
 	// Load the images
 	Mat img2 = imread("im2.png", IMREAD_GRAYSCALE);
 	Mat img6 = imread("im6.png", IMREAD_GRAYSCALE);
-	Mat disp2 = imread("disp2.png", IMREAD_GRAYSCALE);
+	Mat disp6 = imread("disp6.png", IMREAD_GRAYSCALE);
 	if(! (img2.data && img6.data) ){
 		cout <<  "Could not open or find the images" << std::endl ;
 		return -1;
@@ -66,7 +66,7 @@ int main() {
 
 	vector<DMatch> surf_matches;
 	cout << "FLANN!" << endl;
-	flann_matcher.match(img2_surf_descriptors, img6_surf_descriptors, surf_matches);
+	flann_matcher.match(img6_surf_descriptors, img2_surf_descriptors, surf_matches);
 
 	// Sort the matches based on distance 
 	sort(surf_matches.begin(), surf_matches.end(), dist);
@@ -74,14 +74,14 @@ int main() {
 	// Find best matches based on distance
 	vector<DMatch> best_matches;
 	for(int m=0; m<surf_matches.size(); m++){
-		int img2_idx = surf_matches[m].queryIdx;
-		int img6_idx = surf_matches[m].trainIdx;
-		int img2_x = img2_surf_kps[img2_idx].pt.x;
-		int img2_y = img2_surf_kps[img2_idx].pt.y;
+		int img6_idx = surf_matches[m].queryIdx;
+		int img2_idx = surf_matches[m].trainIdx;
 		int img6_x = img6_surf_kps[img6_idx].pt.x;
 		int img6_y = img6_surf_kps[img6_idx].pt.y;
+		int img2_x = img2_surf_kps[img2_idx].pt.x;
+		int img2_y = img2_surf_kps[img2_idx].pt.y;
 		double disp_xy = sqrt(pow(img2_y-img6_y, 2)+pow(img2_x-img6_x, 2));
-		double gt_xy_disp = (disp2.at<uchar>(img2_x, img2_y))/float(4);
+		double gt_xy_disp = (disp6.at<uchar>(img6_x, img6_y))/float(4);
 		
 		if(abs(disp_xy - gt_xy_disp) < delta_d)
 			best_matches.push_back(surf_matches[m]);
@@ -90,8 +90,8 @@ int main() {
 	// Draw and display the matches
 	Mat draw_surf_matches;
 	Mat draw_best_surf_matches;
-	drawMatches(img2, img2_surf_kps, img6, img6_surf_kps, surf_matches, draw_surf_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-	drawMatches(img2, img2_surf_kps, img6, img6_surf_kps, best_matches, draw_best_surf_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+	drawMatches(img6, img6_surf_kps, img2, img2_surf_kps, surf_matches, draw_surf_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+	drawMatches(img6, img6_surf_kps, img2, img2_surf_kps, best_matches, draw_best_surf_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
 
 	namedWindow("SURF Matches", WINDOW_AUTOSIZE);
 	imshow("SURF Matches", draw_surf_matches);
@@ -108,36 +108,36 @@ int main() {
 	cout << "SURF match distance sum = " << dist_sum << endl;
 	cout << "Avg matching distance = " << avg << endl;
 
-	// Calculate the Disparity (img2 to img6) using only best matches
+	// Calculate the Disparity (img6 to img2) using only best matches
 	double total_disp_x = 0;
 	double total_disp_y = 0;
 	double total_disp_xy = 0;
 	double gt_total_disp_xy = 0;
 	double rmse_err = 0; 
 	for(int m=0; m<best_matches.size(); m++){
-		int img2_idx = best_matches[m].queryIdx;
-		int img6_idx = best_matches[m].trainIdx;
-		int img2_x = img2_surf_kps[img2_idx].pt.x;
-		int img2_y = img2_surf_kps[img2_idx].pt.y;
+		int img6_idx = best_matches[m].queryIdx;
+		int img2_idx = best_matches[m].trainIdx;
 		int img6_x = img6_surf_kps[img6_idx].pt.x;
 		int img6_y = img6_surf_kps[img6_idx].pt.y;
+		int img2_x = img2_surf_kps[img2_idx].pt.x;
+		int img2_y = img2_surf_kps[img2_idx].pt.y;
 		total_disp_x += abs(img2_x-img6_x);
 		total_disp_y += abs(img2_y-img6_y);
 		double disp_xy = sqrt(pow(img2_y-img6_y, 2)+pow(img2_x-img6_x, 2));
 		total_disp_xy += disp_xy; 
-		double gt_xy_disp = (disp2.at<uchar>(img2_x, img2_y))/float(4);
+		double gt_xy_disp = (disp6.at<uchar>(img6_x, img6_y))/float(4);
 		gt_total_disp_xy += gt_xy_disp;
 		rmse_err += pow(disp_xy-gt_xy_disp, 2)/best_matches.size();
 	}
 	rmse_err = sqrt(rmse_err);
 
-	cout << endl << "--- Image 2-6 Respective Measurements --- " << endl;
+	cout << endl << "--- Image 6-2 Respective Measurements --- " << endl;
 	cout << "SURF Avg X Disparity = " << total_disp_x/best_matches.size() << endl;
 	cout << "SURF Avg Y Disparity = " << total_disp_y/best_matches.size() << endl;
 	cout << "SURF Avg XY Disparity = " << total_disp_xy/best_matches.size() << endl;
 	cout << "GT Avg XY Disparity = " << gt_total_disp_xy/best_matches.size() << endl;
 	cout << "RMSE XY = " << rmse_err << endl;
-	cout << "Percent Incorrectly Matched Points = " << 100*(surf_matches.size() - best_matches.size())/surf_matches.size() << "%" << endl;
+	cout << "Percent Incorrectly Matched Points = " << 100*(surf_matches.size() - best_matches.size())/surf_matches.size() << "% with threshold = " << delta_d << endl;
 
 	
 	
