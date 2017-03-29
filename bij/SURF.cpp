@@ -22,6 +22,8 @@ int main() {
 	// Load the images
 	Mat img2 = imread("im2.png", IMREAD_GRAYSCALE);
 	Mat img6 = imread("im6.png", IMREAD_GRAYSCALE);
+	Mat disp2 = imread("disp2.png", IMREAD_GRAYSCALE);
+	Mat disp6 = imread("disp6.png", IMREAD_GRAYSCALE);
 	if(! (img2.data && img6.data) ){
 		cout <<  "Could not open or find the images" << std::endl ;
 		return -1;
@@ -94,8 +96,9 @@ int main() {
 	cout << "Avg matching distance = " << avg << endl;
 
 
-	// Calculate the Disparity
+	// Calculate the Disparity (img2 to img6)
 	double sum = 0; 
+	double gt_sum = 0; 
 	for(int m=0; m<surf_matches.size(); m++){
 		//cout << "------" << endl << surf_matches[m].imgIdx << endl << surf_matches[m].queryIdx << endl << surf_matches[m].trainIdx << endl << "------" << endl;
 		int img2_idx = surf_matches[m].queryIdx;
@@ -105,13 +108,40 @@ int main() {
 		int img6_x = img6_all_surf_kps[img6_idx].pt.x;
 		int img6_y = img6_all_surf_kps[img6_idx].pt.y;
 		double euc_dist = sqrt(pow(img2_y-img6_y, 2)+pow(img2_x-img6_x, 2));
-		cout << euc_dist << endl;
+		//cout << euc_dist << endl;
 		sum += euc_dist;
+
+		gt_sum += (disp2.at<uchar>(img2_x, img2_y))/float(4);
 	}
 
+	cout << "--- Image 2 Respective Measurements --- " << endl;
+	cout << "GT Sum of Distances (Disparity) = " << gt_sum << endl;
 	cout << "Sum of Distances (Disparity) = " << sum << endl;
+	cout << "GT Average Distance (Disparity) = " << gt_sum/surf_matches.size() << endl;
 	cout << "Average Distance (Disparity) = " << sum/surf_matches.size() << endl;
 
+	// Calculate the Disparity (img6 to img2)
+	sum = 0; 
+	gt_sum = 0; 
+	for(int m=0; m<surf_matches.size(); m++){
+		//cout << "------" << endl << surf_matches[m].imgIdx << endl << surf_matches[m].queryIdx << endl << surf_matches[m].trainIdx << endl << "------" << endl;
+		int img2_idx = surf_matches[m].trainIdx;
+		int img6_idx = surf_matches[m].queryIdx;
+		int img2_x = img2_all_surf_kps[img2_idx].pt.x;
+		int img2_y = img2_all_surf_kps[img2_idx].pt.y;
+		int img6_x = img6_all_surf_kps[img6_idx].pt.x;
+		int img6_y = img6_all_surf_kps[img6_idx].pt.y;
+		double euc_dist = sqrt(pow(img2_y-img6_y, 2)+pow(img2_x-img6_x, 2));
+		//cout << euc_dist << endl;
+		sum += euc_dist;
+		gt_sum += (disp6.at<uchar>(img2_x, img2_y))/float(4);
+	}
+
+	cout << "--- Image 2 Respective Measurements --- " << endl;
+	cout << "GT Sum of Distances (Disparity) = " << gt_sum << endl;
+	cout << "Sum of Distances (Disparity) = " << sum << endl;
+	cout << "GT Average Distance (Disparity) = " << gt_sum/surf_matches.size() << endl;
+	cout << "Average Distance (Disparity) = " << sum/surf_matches.size() << endl;
 
 	return 0;
 }
