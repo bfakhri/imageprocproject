@@ -22,6 +22,8 @@ int main() {
 	// Load the images
 	Mat img2 = imread("im2.png", IMREAD_GRAYSCALE);
 	Mat img6 = imread("im6.png", IMREAD_GRAYSCALE);
+	Mat disp2 = imread("disp2.png", IMREAD_GRAYSCALE);
+	Mat disp6 = imread("disp6.png", IMREAD_GRAYSCALE);
 	if(! (img2.data && img6.data) ){
 		cout <<  "Could not open or find the images" << std::endl ;
 		return -1;
@@ -38,8 +40,8 @@ int main() {
 	// Detect Key Points
 	vector<KeyPoint> img2_all_sift_kps;
 	vector<KeyPoint> img6_all_sift_kps;
-	sift_f2d->detect(gray2, img2_sift_keypoints);
-	sift_f2d->detect(gray6, img6_sift_keypoints);
+	sift_f2d->detect(gray2, img2_all_sift_kps);
+	sift_f2d->detect(gray6, img6_all_sift_kps);
 
 	// Create Descriptors for the keypoints
 	Mat img2_sift_descriptors;
@@ -48,16 +50,16 @@ int main() {
 	sift_f2d->compute(gray2, img6_all_sift_kps, img6_sift_descriptors);
 
 	// Draw the keypoints to new images and display them
-	Mat draw_img2_sift_keypoints;
-	Mat draw_img6_sift_keypoints;
-	drawKeypoints(gray2, img2_all_sift_kps, draw_img2_sift_keypoints, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-	drawKeypoints(gray6, img6_all_sift_kps, draw_img6_sift_keypoints, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	Mat draw_img2_all_sift_kps;
+	Mat draw_img6_all_sift_kps;
+	drawKeypoints(gray2, img2_all_sift_kps, draw_img2_all_sift_kps, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	drawKeypoints(gray6, img6_all_sift_kps, draw_img6_all_sift_kps, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 	
 	// Display the keypoints of all images
 	namedWindow("IM2 SIFT KeyPoints", WINDOW_AUTOSIZE);
-	imshow("IM2 SIFT KeyPoints", draw_img2_sift_keypoints);
+	imshow("IM2 SIFT KeyPoints", draw_img2_all_sift_kps);
 	namedWindow("IM6 SIFT KeyPoints", WINDOW_AUTOSIZE);
-	imshow("IM6 SIFT KeyPoints", draw_img6_sift_keypoints);
+	imshow("IM6 SIFT KeyPoints", draw_img6_all_sift_kps);
 	cv::waitKey(0);
 	destroyWindow("IM2 SIFT KeyPoints");
 	destroyWindow("IM6 SIFT KeyPoints");
@@ -69,70 +71,78 @@ int main() {
 	vector<DMatch> sift_matches;
 	cout << "FLANN!" << endl;
 	flann_matcher.match(img2_sift_descriptors, img6_sift_descriptors, sift_matches);
-	//cout << "BruteForce!" << endl;
-	//BruteForceMatcher.match(img2_sift_descriptors, img6_sift_descriptors, sift_matches);
 
-	// Sort and filter for Filter out the matches with too great of a distance
-	sort(sift_matches.begin(), sift_matches.end(), dist);
-	vector<DMatch> sift_good_matches;
-	for(int m=0; m<num_good_matches; m++){
-			sift_good_matches.push_back(sift_matches[m]);
-	}
-
-	// Draw and display the good matches
+	// Draw and display the matches
 	Mat draw_sift_matches;
-	drawMatches(img2, img2_all_sift_kps, img6, img6_all_sift_kps, sift_good_matches, draw_sift_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-	//drawMatches(img2, img2_sift_keypoints, img6, img6_sift_keypoints, sift_good_matches, draw_sift_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::DEFAULT);
-		
+	drawMatches(img2, img2_all_sift_kps, img6, img6_all_sift_kps, sift_matches, draw_sift_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+	//drawMatches(img2, img2_all_sift_kps, img6, img6_all_sift_kps, sift_good_matches, draw_sift_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::DEFAULT);	
+
+
+	// Sort the matches based on distance 
+	sort(sift_matches.begin(), sift_matches.end(), dist);
+
 	namedWindow("SIFT Matches", WINDOW_AUTOSIZE);
 	imshow("SIFT Matches", draw_sift_matches);
+	cv::waitKey(0);
 
 	double dist_sum = 0; 
 	for(int m=0; m<sift_matches.size(); m++){
 		dist_sum += sift_matches[m].distance; 
+		cout << sift_matches[m].distance << endl;
 	}
 	double avg = dist_sum/sift_matches.size();
 
-	cout << "Sum = " << dist_sum << endl;
-	cout << "Avg = " << avg << endl;
+	cout << "SIFT match distance sum = " << dist_sum << endl;
+	cout << "Avg matching distance = " << avg << endl;
 
 
-	// Calculate the Disparity
-	Mat new_int_2_6(img2.rows, img2.cols, DataType<float>::type);
-	Mat new_disp_2_6(img2.rows, img2.cols, DataType<float>::type);
+	// Calculate the Disparity (img2 to img6)
 	double sum = 0; 
-	for(int r=0; r<img2.rows; r++){
-		for(int c=0; c<img2.cols; c++){
-			int img2_val = img2.at<uchar>(r, c);
-			int img6_Idx = sift_matches[r*img2.rows+c].trainIdx;
-			int img6_x = img6_all_sift_kps[img6_Idx].pt.x;
-			int img6_y = img6_all_sift_kps[img6_Idx].pt.y;
-			int img6_val = img6.at<uchar>(img6_y, img6_x);
-			double diff = pow(img2_val - img6_val, 2);
-			//double diff = abs(img2_val - img6_val);
-			new_int_2_6.at<float>(r,c) = diff;
-			new_disp_2_6.at<float>(r,c) = sqrt(pow(r-img6_y, 2)+pow(c-img6_x, 2));
-			sum += diff;
-		}
+	double gt_sum = 0; 
+	for(int m=0; m<sift_matches.size(); m++){
+		//cout << "------" << endl << sift_matches[m].imgIdx << endl << sift_matches[m].queryIdx << endl << sift_matches[m].trainIdx << endl << "------" << endl;
+		int img2_idx = sift_matches[m].queryIdx;
+		int img6_idx = sift_matches[m].trainIdx;
+		int img2_x = img2_all_sift_kps[img2_idx].pt.x;
+		int img2_y = img2_all_sift_kps[img2_idx].pt.y;
+		int img6_x = img6_all_sift_kps[img6_idx].pt.x;
+		int img6_y = img6_all_sift_kps[img6_idx].pt.y;
+		double euc_dist = sqrt(pow(img2_y-img6_y, 2)+pow(img2_x-img6_x, 2));
+		//cout << euc_dist << endl;
+		sum += euc_dist;
+
+		gt_sum += (disp2.at<uchar>(img2_x, img2_y))/float(4);
 	}
 
-	cout << sum << endl;
- 	Mat dst;
-        //normalize(new_disp_2_6, dst, 0, 1, cv::NORM_MINMAX);
-	imshow("IMG2-IMG6-DISP", new_int_2_6);
-        normalize(new_int_2_6, dst, 0, 1, cv::NORM_MINMAX);
-        imshow("test", dst);
-	//namedWindow("IMG2-IMG6-DISP", WINDOW_AUTOSIZE);
-	cv::waitKey(0);
-		
+	cout << "--- Image 2 Respective Measurements --- " << endl;
+	cout << "GT Sum of Distances (Disparity) = " << gt_sum << endl;
+	cout << "Sum of Distances (Disparity) = " << sum << endl;
+	cout << "GT Average Distance (Disparity) = " << gt_sum/sift_matches.size() << endl;
+	cout << "Average Distance (Disparity) = " << sum/sift_matches.size() << endl;
 
-	cout << sift_good_matches[0].imgIdx << endl;
-	cout << sift_good_matches[0].queryIdx << endl;
-	cout << sift_good_matches[0].trainIdx << endl;
-			
-	
+	// Calculate the Disparity (img6 to img2)
+	sum = 0; 
+	gt_sum = 0; 
+	for(int m=0; m<sift_matches.size(); m++){
+		//cout << "------" << endl << sift_matches[m].imgIdx << endl << sift_matches[m].queryIdx << endl << sift_matches[m].trainIdx << endl << "------" << endl;
+		int img2_idx = sift_matches[m].trainIdx;
+		int img6_idx = sift_matches[m].queryIdx;
+		int img2_x = img2_all_sift_kps[img2_idx].pt.x;
+		int img2_y = img2_all_sift_kps[img2_idx].pt.y;
+		int img6_x = img6_all_sift_kps[img6_idx].pt.x;
+		int img6_y = img6_all_sift_kps[img6_idx].pt.y;
+		double euc_dist = sqrt(pow(img2_y-img6_y, 2)+pow(img2_x-img6_x, 2));
+		//cout << euc_dist << endl;
+		sum += euc_dist;
+		gt_sum += (disp6.at<uchar>(img2_x, img2_y))/float(4);
+	}
 
-	cv::waitKey(0);
+	cout << "--- Image 2 Respective Measurements --- " << endl;
+	cout << "GT Sum of Distances (Disparity) = " << gt_sum << endl;
+	cout << "Sum of Distances (Disparity) = " << sum << endl;
+	cout << "GT Average Distance (Disparity) = " << gt_sum/sift_matches.size() << endl;
+	cout << "Average Distance (Disparity) = " << sum/sift_matches.size() << endl;
+
 	return 0;
 }
 

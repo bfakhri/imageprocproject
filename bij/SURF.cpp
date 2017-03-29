@@ -19,7 +19,7 @@ bool dist(DMatch m1, DMatch m2){
 
 int main() {
 	std::cout << "OpenCV Version: " << CV_MAJOR_VERSION << "." << CV_MINOR_VERSION << std::endl;
-	//for gray scale images:
+	// Load the images
 	Mat img2 = imread("im2.png", IMREAD_GRAYSCALE);
 	Mat img6 = imread("im6.png", IMREAD_GRAYSCALE);
 	if(! (img2.data && img6.data) ){
@@ -36,29 +36,28 @@ int main() {
 	Ptr<Feature2D> surf_f2d = xfeatures2d::SURF::create();
 
 	// Detect Key Points
-	vector<KeyPoint> img2_surf_kps;
-	vector<KeyPoint> img6_surf_kps;
-	surf_f2d->detect(gray2, img2_surf_kps);
-	surf_f2d->detect(gray6, img6_surf_kps);
-
+	vector<KeyPoint> img2_all_surf_kps;
+	vector<KeyPoint> img6_all_surf_kps;
+	surf_f2d->detect(gray2, img2_all_surf_kps);
+	surf_f2d->detect(gray6, img6_all_surf_kps);
 
 	// Create Descriptors for the keypoints
 	Mat img2_surf_descriptors;
 	Mat img6_surf_descriptors;
-	surf_f2d->compute(gray2, img2_surf_kps, img2_surf_descriptors);
-	surf_f2d->compute(gray2, img6_surf_kps, img6_surf_descriptors);
+	surf_f2d->compute(gray2, img2_all_surf_kps, img2_surf_descriptors);
+	surf_f2d->compute(gray2, img6_all_surf_kps, img6_surf_descriptors);
 
 	// Draw the keypoints to new images and display them
-	Mat draw_img2_surf_kps;
-	Mat draw_img6_surf_kps;
-	drawKeypoints(gray2, img2_surf_kps, draw_img2_surf_kps, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
-	drawKeypoints(gray6, img6_surf_kps, draw_img6_surf_kps, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	Mat draw_img2_all_surf_kps;
+	Mat draw_img6_all_surf_kps;
+	drawKeypoints(gray2, img2_all_surf_kps, draw_img2_all_surf_kps, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+	drawKeypoints(gray6, img6_all_surf_kps, draw_img6_all_surf_kps, Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 	
 	// Display the keypoints of all images
 	namedWindow("IM2 SURF KeyPoints", WINDOW_AUTOSIZE);
-	imshow("IM2 SURF KeyPoints", draw_img2_surf_kps);
+	imshow("IM2 SURF KeyPoints", draw_img2_all_surf_kps);
 	namedWindow("IM6 SURF KeyPoints", WINDOW_AUTOSIZE);
-	imshow("IM6 SURF KeyPoints", draw_img6_surf_kps);
+	imshow("IM6 SURF KeyPoints", draw_img6_all_surf_kps);
 	cv::waitKey(0);
 	destroyWindow("IM2 SURF KeyPoints");
 	destroyWindow("IM6 SURF KeyPoints");
@@ -67,43 +66,53 @@ int main() {
 	FlannBasedMatcher flann_matcher;
 	BFMatcher BruteForceMatcher = BFMatcher(NORM_L1, true);
 
-	vector<DMatch> flann_surf_matches;
-	vector<DMatch> bf_surf_matches;
+	vector<DMatch> surf_matches;
 	cout << "FLANN!" << endl;
-	flann_matcher.match(img2_surf_descriptors, img6_surf_descriptors, flann_surf_matches);
-	cout << "BruteForce!" << endl;
-	BruteForceMatcher.match(img2_surf_descriptors, img6_surf_descriptors, bf_surf_matches);
+	flann_matcher.match(img2_surf_descriptors, img6_surf_descriptors, surf_matches);
 
-	cout << "# Flann Matches = " << flann_surf_matches.size() << endl;
-	cout << "# BF Matches = " << bf_surf_matches.size() << endl;
-	
-	// Find average distances for Flann and BF matches
-	double flann_sum = 0; 
-	for(int m=0; m<flann_surf_matches.size(); m++){
-		flann_sum += flann_surf_matches[m].distance;
-	}
-	double bf_sum = 0; 
-	for(int m=0; m<bf_surf_matches.size(); m++){
-		bf_sum += bf_surf_matches[m].distance;
-	}
-
-	cout << "Flann Avg = " << flann_sum/flann_surf_matches.size() << "\tBF Avg = " << bf_sum/bf_surf_matches.size() << endl;
-
-	// Draw and display the good matches
+	// Draw and display the matches
 	Mat draw_surf_matches;
-	//drawMatches(img2, img2_surf_kps, img6, img6_surf_kps, surf_good_matches, draw_surf_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-	//drawMatches(img2, img2_surf_kps, img6, img6_surf_kps, surf_good_matches, draw_surf_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::DEFAULT);
-	drawMatches(img2, img2_surf_kps, img6, img6_surf_kps, bf_surf_matches, draw_surf_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::DEFAULT);
-		
+	drawMatches(img2, img2_all_surf_kps, img6, img6_all_surf_kps, surf_matches, draw_surf_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+	//drawMatches(img2, img2_all_surf_kps, img6, img6_all_surf_kps, surf_good_matches, draw_surf_matches, Scalar::all(-1), Scalar::all(-1), vector<char>(), DrawMatchesFlags::DEFAULT);	
+
+
+	// Sort the matches based on distance 
+	sort(surf_matches.begin(), surf_matches.end(), dist);
+
 	namedWindow("SURF Matches", WINDOW_AUTOSIZE);
 	imshow("SURF Matches", draw_surf_matches);
+	cv::waitKey(0);
 
-	for(int m=0; m<img2_surf_descriptors.rows; m++){
-		//cout << bf_surf_matches[m].distance << endl;
+	double dist_sum = 0; 
+	for(int m=0; m<surf_matches.size(); m++){
+		dist_sum += surf_matches[m].distance; 
+		cout << surf_matches[m].distance << endl;
+	}
+	double avg = dist_sum/surf_matches.size();
+
+	cout << "SURF match distance sum = " << dist_sum << endl;
+	cout << "Avg matching distance = " << avg << endl;
+
+
+	// Calculate the Disparity
+	double sum = 0; 
+	for(int m=0; m<surf_matches.size(); m++){
+		//cout << "------" << endl << surf_matches[m].imgIdx << endl << surf_matches[m].queryIdx << endl << surf_matches[m].trainIdx << endl << "------" << endl;
+		int img2_idx = surf_matches[m].queryIdx;
+		int img6_idx = surf_matches[m].trainIdx;
+		int img2_x = img2_all_surf_kps[img2_idx].pt.x;
+		int img2_y = img2_all_surf_kps[img2_idx].pt.y;
+		int img6_x = img6_all_surf_kps[img6_idx].pt.x;
+		int img6_y = img6_all_surf_kps[img6_idx].pt.y;
+		double euc_dist = sqrt(pow(img2_y-img6_y, 2)+pow(img2_x-img6_x, 2));
+		cout << euc_dist << endl;
+		sum += euc_dist;
 	}
 
+	cout << "Sum of Distances (Disparity) = " << sum << endl;
+	cout << "Average Distance (Disparity) = " << sum/surf_matches.size() << endl;
 
-	cv::waitKey(0);
+
 	return 0;
 }
 
