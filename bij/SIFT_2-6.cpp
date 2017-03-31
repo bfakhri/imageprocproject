@@ -54,11 +54,11 @@ int main() {
 	// Display the keypoints of all images
 	namedWindow("IM2 SIFT KeyPoints", WINDOW_AUTOSIZE);
 	imshow("IM2 SIFT KeyPoints", draw_img2_sift_kps);
+	imwrite("./output/26_img2_sift_kps.jpg", draw_img2_sift_kps); 
 	namedWindow("IM6 SIFT KeyPoints", WINDOW_AUTOSIZE);
 	imshow("IM6 SIFT KeyPoints", draw_img6_sift_kps);
+	imwrite("./output/26_img6_sift_kps.jpg", draw_img6_sift_kps); 
 	cv::waitKey(0);
-	//destroyWindow("IM2 SIFT KeyPoints");
-	//destroyWindow("IM6 SIFT KeyPoints");
 
 	// Begin Matching Keypoints
 	FlannBasedMatcher flann_matcher;
@@ -95,8 +95,10 @@ int main() {
 
 	namedWindow("SIFT Matches", WINDOW_AUTOSIZE);
 	imshow("SIFT Matches", draw_sift_matches);
+	imwrite("./output/26_sift_matches.jpg", draw_sift_matches); 
 	namedWindow("Best SIFT Matches", WINDOW_AUTOSIZE);
 	imshow("Best SIFT Matches", draw_best_sift_matches);
+	imwrite("./output/26_best_sift_matches.jpg", draw_best_sift_matches); 
 	cv::waitKey(0);
 
 	double dist_sum = 0; 

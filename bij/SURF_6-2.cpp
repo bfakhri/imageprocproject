@@ -54,8 +54,10 @@ int main() {
 	// Display the keypoints of all images
 	namedWindow("IM2 SURF KeyPoints", WINDOW_AUTOSIZE);
 	imshow("IM2 SURF KeyPoints", draw_img2_surf_kps);
+	imwrite("./output/62_img2_surf_kps.jpg", draw_img2_surf_kps); 
 	namedWindow("IM6 SURF KeyPoints", WINDOW_AUTOSIZE);
 	imshow("IM6 SURF KeyPoints", draw_img6_surf_kps);
+	imwrite("./output/62_img6_surf_kps.jpg", draw_img6_surf_kps); 
 	cv::waitKey(0);
 	//destroyWindow("IM2 SURF KeyPoints");
 	//destroyWindow("IM6 SURF KeyPoints");
@@ -95,8 +97,10 @@ int main() {
 
 	namedWindow("SURF Matches", WINDOW_AUTOSIZE);
 	imshow("SURF Matches", draw_surf_matches);
+	imwrite("./output/62_surf_matches.jpg", draw_surf_matches); 
 	namedWindow("Best SURF Matches", WINDOW_AUTOSIZE);
 	imshow("Best SURF Matches", draw_best_surf_matches);
+	imwrite("./output/62_best_surf_matches.jpg", draw_best_surf_matches); 
 	cv::waitKey(0);
 
 	double dist_sum = 0; 
